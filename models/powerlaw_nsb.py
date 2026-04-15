@@ -1,36 +1,28 @@
-"""
-Guan 2015 model: stepwise specific Ka + power-law decaying NSB Ka.
+"""Stepwise specific + power-law NSB Kn_k = beta/k^gamma (Guan 2015).
 
-For ligand binding step k (1-indexed), the apparent stepwise association
-constant is the sum of a specific contribution (only for k <= S) and a
-nonspecific contribution that decays as a power-law with k:
-
-    Kn_k = beta / k^gamma
-
-    K_app_k = Ks_k + Kn_k    for k <= S
-    K_app_k = Kn_k           for k > S
+For ligand binding step k (1-indexed), apparent stepwise Ka:
+    K_app_k = Ks_k + beta/k^gamma   for k <= S
+    K_app_k = beta/k^gamma           for k > S
 
 Partition function via successive stepwise products:
-    alpha_j = L^j * prod_{k=1..j} K_app_k
+    alpha[j] = L_free^j * prod_{k=1..j} K_app_k
 
-The model reduces to the Shimon constant-NSB case when gamma = 0.
+Reduces to constant-NSB (Shimon-like) when gamma = 0.
 
-Free parameters: ln(beta), gamma (linear, can be 0 or positive), ln(Ks_1..Ks_S).
 Parameter vector layout:
     ln_params = [ln(beta), gamma, ln(Ks_1), ..., ln(Ks_S)]
-    NOTE: gamma is NOT in log space (so it can be exactly 0).
+    NOTE: gamma is in linear space (so it can be exactly 0).
 
 Reference:
-    Guan, S.; Trnka, M. J.; Bushnell, D. A.; Robinson, P. J. J.;
-    Gestwicki, J. E.; Burlingame, A. L.
-    Anal. Chem. 2015, 87, 8541-8546. DOI: 10.1021/acs.analchem.5b02258
+    Guan, S. et al. Anal. Chem. 2015, 87, 8541-8546.
 """
 import numpy as np
 from scipy.optimize import brentq
 
+MODEL_NAME = "powerlaw_nsb"
+
 
 def _unpack(ln_params):
-    """Unpack [ln(beta), gamma, ln(Ks_1), ..., ln(Ks_S)] into beta, gamma, Ks."""
     arr = np.asarray(ln_params)
     beta = np.exp(arr[0])
     gamma = arr[1]
@@ -38,49 +30,65 @@ def _unpack(ln_params):
     return beta, gamma, Ks
 
 
-def calculate_fractions_model(L_free_M, ln_params, S, N):
-    """Predicted mole fractions F_calc[0..S+N] for Guan power-law model."""
+def mole_fractions(L_free_M, ln_params, S, N):
     beta, gamma, Ks = _unpack(ln_params)
     n_max = S + N
 
-    # Build apparent stepwise Ka values: K_app_k for k = 1..n_max
-    K_app = np.zeros(n_max + 1)  # index 0 unused
+    K_app = np.zeros(n_max + 1)
     for k in range(1, n_max + 1):
-        Kn_k = beta / (k ** gamma)
-        if k <= S:
-            K_app[k] = Ks[k - 1] + Kn_k
-        else:
-            K_app[k] = Kn_k
+        denom = k ** gamma
+        Kn_k = beta / denom if denom > 0 and np.isfinite(denom) else 0.0
+        K_app[k] = (Ks[k - 1] if k <= S else 0.0) + Kn_k
 
-    # Successive products: alpha_j = L^j * prod K_app_1..j
     alpha = np.zeros(n_max + 1)
     alpha[0] = 1.0
     for j in range(1, n_max + 1):
         alpha[j] = alpha[j - 1] * L_free_M * K_app[j]
 
-    return alpha / alpha.sum()
+    total = alpha.sum()
+    if total <= 0 or not np.isfinite(total):
+        out = np.zeros(n_max + 1)
+        out[0] = 1.0
+        return out
+    return alpha / total
 
 
-def free_ligand_residual(L_free_M, L_tot_M, P_tot_M, ln_params, S, N):
-    F_calc = calculate_fractions_model(L_free_M, ln_params, S, N)
-    avg_bound = np.dot(np.arange(len(F_calc)), F_calc)
-    return L_free_M - (L_tot_M - P_tot_M * avg_bound)
+def n_params(S):
+    return S + 2
 
 
-def solve_L_free(L_tot_M, P_tot_M, ln_params, S, N):
+def initial_lnK(S, Kn=1e3, Ks=1e5, gamma=0.5):
+    return np.concatenate(([np.log(Kn), gamma], np.log(np.full(S, Ks))))
+
+
+def param_labels(S):
+    return ["beta", "gamma"] + [f"Ks_{i+1}" for i in range(S)]
+
+
+def _balance(L_free_M, L_tot_M, P_tot_M, ln_params, S, N):
+    F = mole_fractions(L_free_M, ln_params, S, N)
+    return L_free_M - (L_tot_M - P_tot_M * np.dot(np.arange(len(F)), F))
+
+
+def free_ligand(L_tot_M, P_tot_M, ln_params, S, N):
     try:
-        return brentq(free_ligand_residual, 0, L_tot_M,
-                      args=(L_tot_M, P_tot_M, ln_params, S, N))
+        return brentq(_balance, 0, L_tot_M, args=(L_tot_M, P_tot_M, ln_params, S, N))
     except ValueError:
         return L_tot_M
 
 
-def residuals(ln_params, L_totals_M, P_tot_M, F_exps, S, N, ssr_history):
+def residual_vector(ln_params, L_totals_M, P_tot_M, F_exps, S, N, ssr_history):
     res_list = []
-    for L_tot_M, F_exp in zip(L_totals_M, F_exps):
-        L_free_M = solve_L_free(L_tot_M, P_tot_M, ln_params, S, N)
-        F_calc = calculate_fractions_model(L_free_M, ln_params, S, N)
-        res_list.append(F_calc - F_exp)
+    for L_tot, F_exp in zip(L_totals_M, F_exps):
+        Lf = free_ligand(L_tot, P_tot_M, ln_params, S, N)
+        Fc = mole_fractions(Lf, ln_params, S, N)
+        res_list.append(Fc - F_exp)
     vec = np.concatenate(res_list)
-    ssr_history.append(np.dot(vec, vec))
+    ssr_history.append(float(np.dot(vec, vec)))
     return vec
+
+
+# Backward-compat aliases
+calculate_fractions_model = mole_fractions
+solve_L_free = free_ligand
+residuals = residual_vector

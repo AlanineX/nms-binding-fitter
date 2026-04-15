@@ -1,30 +1,26 @@
-"""
-Daubenfeld 2006 model: binomial specific (single Ks over S sites) + Poisson NSB.
+"""Binomial specific (single Ks across S sites) + Poisson NSB (Daubenfeld 2006).
 
-Specific binding is noncooperative: S identical sites, all with the same Ka = Ks.
+Specific binding is noncooperative: S identical sites all with Ka = Ks.
 Nonspecific binding is Poisson with mean lambda = Kn * [L]_free.
+
+Parameter vector layout:
+    ln_params = [ln(Kn), ln(Ks)]    (only TWO parameters; S is fixed externally)
 
 Partition function:
     Z[i] = sum_{j=0}^{min(i,S)} C(S,j) * Ks^j * Kn^(i-j) / (i-j)!
 
-Only two free parameters: ln(Kn), ln(Ks).
-S is fixed a priori (known number of specific sites).
-
 Reference:
     Daubenfeld, T.; Bouin, A.-P.; van der Rest, G.
     J. Am. Soc. Mass Spectrom. 2006, 17, 1239-1248.
-    DOI: 10.1016/j.jasms.2006.05.005
 """
 import numpy as np
 from math import factorial, comb
 from scipy.optimize import brentq
 
+MODEL_NAME = "binomial_poisson"
 
-def calculate_fractions_model(L_free_M, ln_params, S, N):
-    """Predicted mole fractions F_calc[0..S+N].
 
-    ln_params = [ln(Kn), ln(Ks)]  (only two parameters)
-    """
+def mole_fractions(L_free_M, ln_params, S, N):
     params = np.exp(np.asarray(ln_params))
     Kn = params[0]
     Ks = params[1]
@@ -42,26 +38,42 @@ def calculate_fractions_model(L_free_M, ln_params, S, N):
     return alpha / alpha.sum()
 
 
-def free_ligand_residual(L_free_M, L_tot_M, P_tot_M, ln_params, S, N):
-    F_calc = calculate_fractions_model(L_free_M, ln_params, S, N)
-    avg_bound = np.dot(np.arange(len(F_calc)), F_calc)
-    return L_free_M - (L_tot_M - P_tot_M * avg_bound)
+def n_params(S):
+    return 2  # always 2 regardless of S
 
 
-def solve_L_free(L_tot_M, P_tot_M, ln_params, S, N):
+def initial_lnK(S, Kn=1e3, Ks=1e5):
+    return np.log([Kn, Ks])
+
+
+def param_labels(S):
+    return ["Kn", "Ks"]
+
+
+def _balance(L_free_M, L_tot_M, P_tot_M, ln_params, S, N):
+    F = mole_fractions(L_free_M, ln_params, S, N)
+    return L_free_M - (L_tot_M - P_tot_M * np.dot(np.arange(len(F)), F))
+
+
+def free_ligand(L_tot_M, P_tot_M, ln_params, S, N):
     try:
-        return brentq(free_ligand_residual, 0, L_tot_M,
-                      args=(L_tot_M, P_tot_M, ln_params, S, N))
+        return brentq(_balance, 0, L_tot_M, args=(L_tot_M, P_tot_M, ln_params, S, N))
     except ValueError:
         return L_tot_M
 
 
-def residuals(ln_params, L_totals_M, P_tot_M, F_exps, S, N, ssr_history):
+def residual_vector(ln_params, L_totals_M, P_tot_M, F_exps, S, N, ssr_history):
     res_list = []
-    for L_tot_M, F_exp in zip(L_totals_M, F_exps):
-        L_free_M = solve_L_free(L_tot_M, P_tot_M, ln_params, S, N)
-        F_calc = calculate_fractions_model(L_free_M, ln_params, S, N)
-        res_list.append(F_calc - F_exp)
+    for L_tot, F_exp in zip(L_totals_M, F_exps):
+        Lf = free_ligand(L_tot, P_tot_M, ln_params, S, N)
+        Fc = mole_fractions(Lf, ln_params, S, N)
+        res_list.append(Fc - F_exp)
     vec = np.concatenate(res_list)
-    ssr_history.append(np.dot(vec, vec))
+    ssr_history.append(float(np.dot(vec, vec)))
     return vec
+
+
+# Backward-compat aliases
+calculate_fractions_model = mole_fractions
+solve_L_free = free_ligand
+residuals = residual_vector

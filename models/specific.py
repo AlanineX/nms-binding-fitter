@@ -1,51 +1,68 @@
-"""
-Specific-only stepwise binding model.
-K_list = [K1, K2, ..., Kn] are stepwise association constants.
-alpha_i = L^i * prod(K1..Ki)
+"""Specific-only stepwise binding model (no nonspecific component).
+
+Parameter vector layout:
+    ln_params = [ln(Ks_1), ln(Ks_2), ..., ln(Ks_S)]
+
+Partition function:
+    alpha[i] = L_free^i * prod(Ks_1..Ks_i)
+    F[i] = alpha[i] / sum(alpha)
+
+N is accepted in every signature for interface uniformity but ignored
+(this model has no nonspecific population).
 """
 import numpy as np
 from scipy.optimize import brentq
 
+MODEL_NAME = "specific"
 
-def compute_F_calc_specific(L_free, K_list):
-    """
-    Computes predicted mole fractions for a simple stepwise binding model.
-    K_list = [K1, K2, ..., Kn] are stepwise association constants.
-    alpha_i = L^i * prod(K1..Ki)
-    """
-    n = len(K_list)
+
+def mole_fractions(L_free_M, ln_params, S, N=0):
+    K = np.exp(np.asarray(ln_params))
+    n = len(K)
     a = np.ones(n + 1)
     for i in range(1, n + 1):
-        a[i] = (L_free ** i) * np.prod(K_list[:i])
+        a[i] = (L_free_M ** i) * np.prod(K[:i])
     return a / a.sum()
 
 
-def free_ligand_residual_specific(L_free, L_tot, P_tot, K_list):
-    """Residual for root-finding [L]_free in specific-only model."""
-    F = compute_F_calc_specific(L_free, K_list)
-    avg = np.dot(np.arange(F.size), F)
-    return L_free - (L_tot - P_tot * avg)
+def n_params(S):
+    return S
 
 
-def solve_L_free_specific(L_tot, P_tot, K_list):
-    """Finds [L]_free for specific-only model using Brentq."""
+def initial_lnK(S, Kn=None, Ks=1e5):
+    return np.full(S, np.log(Ks))
+
+
+def param_labels(S):
+    return [f"Ks_{i+1}" for i in range(S)]
+
+
+def _balance(L_free_M, L_tot_M, P_tot_M, ln_params, S, N):
+    F = mole_fractions(L_free_M, ln_params, S, N)
+    return L_free_M - (L_tot_M - P_tot_M * np.dot(np.arange(len(F)), F))
+
+
+def free_ligand(L_tot_M, P_tot_M, ln_params, S, N=0):
     try:
-        return brentq(free_ligand_residual_specific, 0, L_tot,
-                      args=(L_tot, P_tot, K_list))
+        return brentq(_balance, 0, L_tot_M, args=(L_tot_M, P_tot_M, ln_params, S, N))
     except ValueError:
-        return L_tot
+        return L_tot_M
 
 
-def residuals_specific(lnK, L_totals_M, P_tot_M, F_exps, ssr_history):
-    """Residual vector for specific-only least-squares."""
-    K_list = np.exp(lnK)
-    res = []
+def residual_vector(ln_params, L_totals_M, P_tot_M, F_exps, S, N, ssr_history):
+    res_list = []
     for L_tot, F_exp in zip(L_totals_M, F_exps):
-        Lf = solve_L_free_specific(L_tot, P_tot_M, K_list)
-        Fc = compute_F_calc_specific(Lf, K_list)
+        Lf = free_ligand(L_tot, P_tot_M, ln_params, S, N)
+        Fc = mole_fractions(Lf, ln_params, S, N)
         if Fc.size > F_exp.size:
-            F_exp = np.pad(F_exp, (0, Fc.size - F_exp.size), 'constant')
-        res.append(Fc - F_exp)
-    v = np.concatenate(res)
-    ssr_history.append(v.dot(v))
-    return v
+            F_exp = np.pad(F_exp, (0, Fc.size - F_exp.size), "constant")
+        res_list.append(Fc - F_exp)
+    vec = np.concatenate(res_list)
+    ssr_history.append(float(np.dot(vec, vec)))
+    return vec
+
+
+# Backward-compat aliases (for fitting.py)
+compute_F_calc_specific = mole_fractions
+solve_L_free_specific = free_ligand
+residuals_specific = residual_vector
