@@ -8,7 +8,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.dirname(ROOT))
 
-from scripts_binding.models import daubenfeld
+from scripts_binding.models import binomial_poisson as model
 
 
 def main():
@@ -28,14 +28,14 @@ def main():
     # Synthesize data
     F_exps = []
     for L_tot in L_totals_M:
-        L_free = daubenfeld.solve_L_free(L_tot, P_tot_M, ln_true, S, N)
-        F_exps.append(daubenfeld.calculate_fractions_model(L_free, ln_true, S, N))
+        L_free = model.solve_L_free(L_tot, P_tot_M, ln_true, S, N)
+        F_exps.append(model.calculate_fractions_model(L_free, ln_true, S, N))
 
     # Fit with perturbed initial guess
     lnK0 = ln_true + np.log(0.3)
     ssr_history = []
     result = least_squares(
-        daubenfeld.residuals, lnK0,
+        model.residuals, lnK0,
         args=(L_totals_M, P_tot_M, F_exps, S, N, ssr_history),
         method="lm",
     )

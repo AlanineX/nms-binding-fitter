@@ -14,9 +14,9 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.dirname(ROOT))
 
 from scripts_binding.models import nonspecific as mixed_current
-from scripts_binding.models import shimon
-from scripts_binding.models import daubenfeld
-from scripts_binding.models import guan
+from scripts_binding.models import poisson_nsb
+from scripts_binding.models import binomial_poisson
+from scripts_binding.models import powerlaw_nsb
 
 
 DATA_FILE = "/home/alan/working/non_specific_building/binding/corrected_SR1/amac_corrected/AMAC_25C_1.csv"
@@ -81,26 +81,26 @@ def main():
 
     # 2) Shimon: same param layout as mixed, S+1 params
     lnK0 = np.log(np.concatenate(([1e3], np.full(S_FIXED, 1e5))))
-    res, ssr, bic_v = fit_model(shimon, lnK0, L_totals, F_exps, P_TOT_M,
+    res, ssr, bic_v = fit_model(poisson_nsb, lnK0, L_totals, F_exps, P_TOT_M,
                                  S_FIXED, N_FIXED, S_FIXED + 1)
     K = np.exp(res.x)
-    results["shimon"] = {"Kn": K[0], "Ks": K[1:], "ssr": ssr, "bic": bic_v,
+    results["poisson_nsb"] = {"Kn": K[0], "Ks": K[1:], "ssr": ssr, "bic": bic_v,
                          "params": S_FIXED + 1, "extra": {}}
 
     # 3) Daubenfeld: 2 params [lnKn, lnKs] (single Ks for noncooperative binomial)
     lnK0 = np.log([1e3, 1e5])
-    res, ssr, bic_v = fit_model(daubenfeld, lnK0, L_totals, F_exps, P_TOT_M,
+    res, ssr, bic_v = fit_model(binomial_poisson, lnK0, L_totals, F_exps, P_TOT_M,
                                  S_FIXED, N_FIXED, 2)
     K = np.exp(res.x)
-    results["daubenfeld"] = {"Kn": K[0], "Ks": np.array([K[1]]), "ssr": ssr, "bic": bic_v,
+    results["binomial_poisson"] = {"Kn": K[0], "Ks": np.array([K[1]]), "ssr": ssr, "bic": bic_v,
                              "params": 2, "extra": {}}
 
     # 4) Guan: ln_params = [ln(beta), gamma, ln(Ks_1)..ln(Ks_S)], S+2 params
     lnK0 = np.concatenate(([np.log(1e3), 0.5], np.log(np.full(S_FIXED, 1e5))))
-    res, ssr, bic_v = fit_model(guan, lnK0, L_totals, F_exps, P_TOT_M,
+    res, ssr, bic_v = fit_model(powerlaw_nsb, lnK0, L_totals, F_exps, P_TOT_M,
                                  S_FIXED, N_FIXED, S_FIXED + 2)
     beta = np.exp(res.x[0]); gamma = res.x[1]; Ks = np.exp(res.x[2:])
-    results["guan"] = {"Kn": beta, "Ks": Ks, "ssr": ssr, "bic": bic_v,
+    results["powerlaw_nsb"] = {"Kn": beta, "Ks": Ks, "ssr": ssr, "bic": bic_v,
                        "params": S_FIXED + 2, "extra": {"gamma": gamma}}
 
     # --- Print summary ---

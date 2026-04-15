@@ -8,22 +8,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.dirname(ROOT))
 
-from scripts_binding.models import guan
+from scripts_binding.models import powerlaw_nsb as model
 
 
 def synth(S, N, beta, gamma, Ks_true, P_tot_M, L_totals_M):
     ln_params = np.concatenate(([np.log(beta), gamma], np.log(Ks_true)))
     F_list = []
     for L_tot in L_totals_M:
-        L_free = guan.solve_L_free(L_tot, P_tot_M, ln_params, S, N)
-        F_list.append(guan.calculate_fractions_model(L_free, ln_params, S, N))
+        L_free = model.solve_L_free(L_tot, P_tot_M, ln_params, S, N)
+        F_list.append(model.calculate_fractions_model(L_free, ln_params, S, N))
     return F_list, ln_params
 
 
 def fit(L_totals_M, F_exps, P_tot_M, S, N, lnK0):
     history = []
     return least_squares(
-        guan.residuals, lnK0,
+        model.residuals, lnK0,
         args=(L_totals_M, P_tot_M, F_exps, S, N, history),
         method="lm",
     )

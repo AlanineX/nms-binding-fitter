@@ -9,7 +9,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.dirname(ROOT))
 
-from scripts_binding.models import shimon
+from scripts_binding.models import poisson_nsb as model
 
 
 def make_synthetic_data(S, N, Ks_true, Kn_true, P_tot_M, L_totals_M):
@@ -17,8 +17,8 @@ def make_synthetic_data(S, N, Ks_true, Kn_true, P_tot_M, L_totals_M):
     ln_params_true = np.log(np.concatenate(([Kn_true], Ks_true)))
     F_list = []
     for L_tot in L_totals_M:
-        L_free = shimon.solve_L_free(L_tot, P_tot_M, ln_params_true, S, N)
-        F = shimon.calculate_fractions_model(L_free, ln_params_true, S, N)
+        L_free = model.solve_L_free(L_tot, P_tot_M, ln_params_true, S, N)
+        F = model.calculate_fractions_model(L_free, ln_params_true, S, N)
         F_list.append(F)
     return F_list, ln_params_true
 
@@ -27,7 +27,7 @@ def fit_shimon(L_totals_M, F_exps, P_tot_M, S, N, lnK0):
     """Fit Shimon model via least_squares."""
     ssr_history = []
     result = least_squares(
-        shimon.residuals,
+        model.residuals,
         lnK0,
         args=(L_totals_M, P_tot_M, F_exps, S, N, ssr_history),
         method="lm",
@@ -73,7 +73,7 @@ def main():
     # Also verify that solving L_free gives consistent mass balance
     print("\n=== Mass balance check ===")
     for L_tot, F_exp in zip(L_totals_M, F_exps):
-        L_free = shimon.solve_L_free(L_tot, P_tot_M, ln_true, S, N)
+        L_free = model.solve_L_free(L_tot, P_tot_M, ln_true, S, N)
         avg = np.dot(np.arange(len(F_exp)), F_exp)
         L_bound = P_tot_M * avg
         residual = L_tot - L_free - L_bound

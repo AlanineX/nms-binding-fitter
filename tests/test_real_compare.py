@@ -5,9 +5,9 @@ parameters, SSR, and BIC are tabulated for direct comparison.
 
 Models:
   - mixed_current  current Kn^(i-j) hybrid (geometric NSB)
-  - shimon         Poisson NSB, stepwise specific
-  - daubenfeld     Poisson NSB, binomial specific (single Ks)
-  - guan           power-law NSB Kn_k = beta/k^gamma, stepwise specific
+  - poisson_nsb         Poisson NSB, stepwise specific
+  - binomial_poisson     Poisson NSB, binomial specific (single Ks)
+  - powerlaw_nsb           power-law NSB Kn_k = beta/k^gamma, stepwise specific
 """
 import os
 import sys
@@ -20,9 +20,9 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.dirname(ROOT))
 
 from scripts_binding.models import nonspecific as mixed_current
-from scripts_binding.models import shimon
-from scripts_binding.models import daubenfeld
-from scripts_binding.models import guan
+from scripts_binding.models import poisson_nsb
+from scripts_binding.models import binomial_poisson
+from scripts_binding.models import powerlaw_nsb
 
 
 DATA_FILES = {
@@ -85,26 +85,26 @@ def run_one(label, path):
     K = np.exp(res.x)
     rows.append(("mixed_current", S_FIXED + 1, ssr, bic_v, K[0], K[1:], None))
 
-    # 2) shimon
+    # 2) poisson_nsb
     lnK0 = np.log(np.concatenate(([1e3], np.full(S_FIXED, 1e5))))
-    res, ssr, bic_v = fit_model(shimon, lnK0, L_totals, F_exps, P_TOT_M,
+    res, ssr, bic_v = fit_model(poisson_nsb, lnK0, L_totals, F_exps, P_TOT_M,
                                  S_FIXED, N_FIXED, S_FIXED + 1)
     K = np.exp(res.x)
-    rows.append(("shimon", S_FIXED + 1, ssr, bic_v, K[0], K[1:], None))
+    rows.append(("poisson_nsb", S_FIXED + 1, ssr, bic_v, K[0], K[1:], None))
 
-    # 3) daubenfeld
+    # 3) binomial_poisson
     lnK0 = np.log([1e3, 1e5])
-    res, ssr, bic_v = fit_model(daubenfeld, lnK0, L_totals, F_exps, P_TOT_M,
+    res, ssr, bic_v = fit_model(binomial_poisson, lnK0, L_totals, F_exps, P_TOT_M,
                                  S_FIXED, N_FIXED, 2)
     K = np.exp(res.x)
-    rows.append(("daubenfeld", 2, ssr, bic_v, K[0], np.array([K[1]]), None))
+    rows.append(("binomial_poisson", 2, ssr, bic_v, K[0], np.array([K[1]]), None))
 
-    # 4) guan
+    # 4) powerlaw_nsb
     lnK0 = np.concatenate(([np.log(1e3), 0.5], np.log(np.full(S_FIXED, 1e5))))
-    res, ssr, bic_v = fit_model(guan, lnK0, L_totals, F_exps, P_TOT_M,
+    res, ssr, bic_v = fit_model(powerlaw_nsb, lnK0, L_totals, F_exps, P_TOT_M,
                                  S_FIXED, N_FIXED, S_FIXED + 2)
     beta = np.exp(res.x[0]); gamma = res.x[1]; Ks = np.exp(res.x[2:])
-    rows.append(("guan", S_FIXED + 2, ssr, bic_v, beta, Ks, gamma))
+    rows.append(("powerlaw_nsb", S_FIXED + 2, ssr, bic_v, beta, Ks, gamma))
 
     # Print
     print(f"\n{'Model':<16} {'#p':>3} {'SSR':>11} {'BIC':>10}  Kd_n (uM)   Kd_s (uM)              extra")
