@@ -7,16 +7,15 @@ Partition function:
     alpha[i] = L_free^i * prod(Ks_1..Ks_i)
     F[i] = alpha[i] / sum(alpha)
 
-N is accepted in every signature for interface uniformity but ignored
-(this model has no nonspecific population).
+N is accepted in every signature for interface uniformity but ignored.
 """
 import numpy as np
 from scipy.optimize import brentq
 
-MODEL_NAME = "specific"
+MODEL_NAME = "specific_binding"
 
 
-def mole_fractions(L_free_M, ln_params, S, N=0):
+def mole_fractions(L_free_M, ln_params, S, N):
     K = np.exp(np.asarray(ln_params))
     n = len(K)
     a = np.ones(n + 1)
@@ -42,7 +41,7 @@ def _balance(L_free_M, L_tot_M, P_tot_M, ln_params, S, N):
     return L_free_M - (L_tot_M - P_tot_M * np.dot(np.arange(len(F)), F))
 
 
-def free_ligand(L_tot_M, P_tot_M, ln_params, S, N=0):
+def free_ligand(L_tot_M, P_tot_M, ln_params, S, N):
     try:
         return brentq(_balance, 0, L_tot_M, args=(L_tot_M, P_tot_M, ln_params, S, N))
     except ValueError:
@@ -60,9 +59,3 @@ def residual_vector(ln_params, L_totals_M, P_tot_M, F_exps, S, N, ssr_history):
     vec = np.concatenate(res_list)
     ssr_history.append(float(np.dot(vec, vec)))
     return vec
-
-
-# Backward-compat aliases (for fitting.py)
-compute_F_calc_specific = mole_fractions
-solve_L_free_specific = free_ligand
-residuals_specific = residual_vector

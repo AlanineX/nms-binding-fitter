@@ -1,8 +1,7 @@
-"""Stepwise specific Ks_i + Poisson NSB (Shimon-Sharon-Horovitz 2010).
+"""Stepwise specific Ks_i + Poisson nonspecific (Shimon-Sharon-Horovitz 2010).
 
-Differs from geometric_nsb (nonspecific.py) by adding 1/(i-j)! factorial
-weighting on the nonspecific term (Poisson distribution with mean
-lambda = Kn * [L]_free).
+Differs from geometric_nonspecific by adding 1/(i-j)! factorial weighting
+on the nonspecific term (Poisson distribution with mean lambda = Kn * [L]_free).
 
 Parameter vector layout:
     ln_params = [ln(Kn), ln(Ks_1), ..., ln(Ks_S)]
@@ -17,7 +16,7 @@ import numpy as np
 from math import factorial
 from scipy.optimize import brentq
 
-MODEL_NAME = "poisson_nsb"
+MODEL_NAME = "poisson_nonspecific"
 
 
 def mole_fractions(L_free_M, ln_params, S, N):
@@ -72,9 +71,3 @@ def residual_vector(ln_params, L_totals_M, P_tot_M, F_exps, S, N, ssr_history):
     vec = np.concatenate(res_list)
     ssr_history.append(float(np.dot(vec, vec)))
     return vec
-
-
-# Backward-compat aliases
-calculate_fractions_model = mole_fractions
-solve_L_free = free_ligand
-residuals = residual_vector

@@ -1,5 +1,5 @@
-"""Geometric-NSB model: stepwise specific Ks_i + single Kn raised to (i-j)
-power without combinatorial weighting.
+"""Geometric nonspecific model: stepwise specific Ks_i + single Kn raised to
+(i-j) power without combinatorial weighting.
 
 Parameter vector layout:
     ln_params = [ln(Kn), ln(Ks_1), ..., ln(Ks_S)]
@@ -8,13 +8,12 @@ Partition function:
     Z[i] = sum_{j=0}^{min(i,S)} prod(Ks_1..Ks_j) * Kn^(i-j)
     F[i] = Z[i] * L_free^i / sum
 
-This is the original mixed model in this package. The Poisson alternative
-(adds 1/(i-j)! weighting) is in poisson_nsb.py.
+The Poisson alternative (adds 1/(i-j)! weighting) is in poisson_nonspecific.py.
 """
 import numpy as np
 from scipy.optimize import brentq
 
-MODEL_NAME = "geometric_nsb"
+MODEL_NAME = "geometric_nonspecific"
 
 
 def mole_fractions(L_free_M, ln_params, S, N):
@@ -124,9 +123,3 @@ def debug_validate_point(idx, L_tot_M, L_free_M, lnK_opt, F_calc, S, N, cfg):
     parts = [f"{j} spec + {i_focus - j} non: {100.0 * frac_within[i_focus, j]:.1f}%"
              for j in range(min(i_focus, S) + 1)]
     print(f"I{i_focus} composition: " + "; ".join(parts))
-
-
-# Backward-compat aliases (for fitting.py)
-calculate_fractions_model = mole_fractions
-solve_L_free = free_ligand
-residuals = residual_vector

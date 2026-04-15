@@ -30,9 +30,8 @@ class RunConfig:
     auto_adjust_s: bool = True
     min_species_frac: float = 0.01
 
-    # --- Enable switches ---
-    specific_enable: bool = True
-    nonspecific_enable: bool = True
+    # --- Models to run (names from models.REGISTRY) ---
+    models: List[str] = field(default_factory=lambda: ["specific_binding", "geometric_nonspecific"])
 
     # --- Deconvolution ---
     deconv_enable: bool = True

@@ -1,4 +1,4 @@
-"""Stepwise specific + power-law NSB Kn_k = beta/k^gamma (Guan 2015).
+"""Stepwise specific + power-law nonspecific Kn_k = beta/k^gamma (Guan 2015).
 
 For ligand binding step k (1-indexed), apparent stepwise Ka:
     K_app_k = Ks_k + beta/k^gamma   for k <= S
@@ -7,7 +7,7 @@ For ligand binding step k (1-indexed), apparent stepwise Ka:
 Partition function via successive stepwise products:
     alpha[j] = L_free^j * prod_{k=1..j} K_app_k
 
-Reduces to constant-NSB (Shimon-like) when gamma = 0.
+Reduces to constant-nonspecific (Shimon-like) when gamma = 0.
 
 Parameter vector layout:
     ln_params = [ln(beta), gamma, ln(Ks_1), ..., ln(Ks_S)]
@@ -19,7 +19,7 @@ Reference:
 import numpy as np
 from scipy.optimize import brentq
 
-MODEL_NAME = "powerlaw_nsb"
+MODEL_NAME = "power_law_nonspecific"
 
 
 def _unpack(ln_params):
@@ -86,9 +86,3 @@ def residual_vector(ln_params, L_totals_M, P_tot_M, F_exps, S, N, ssr_history):
     vec = np.concatenate(res_list)
     ssr_history.append(float(np.dot(vec, vec)))
     return vec
-
-
-# Backward-compat aliases
-calculate_fractions_model = mole_fractions
-solve_L_free = free_ligand
-residuals = residual_vector

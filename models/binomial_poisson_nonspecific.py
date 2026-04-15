@@ -1,4 +1,5 @@
-"""Binomial specific (single Ks across S sites) + Poisson NSB (Daubenfeld 2006).
+"""Binomial specific (single Ks across S sites) + Poisson nonspecific
+(Daubenfeld 2006).
 
 Specific binding is noncooperative: S identical sites all with Ka = Ks.
 Nonspecific binding is Poisson with mean lambda = Kn * [L]_free.
@@ -17,7 +18,7 @@ import numpy as np
 from math import factorial, comb
 from scipy.optimize import brentq
 
-MODEL_NAME = "binomial_poisson"
+MODEL_NAME = "binomial_poisson_nonspecific"
 
 
 def mole_fractions(L_free_M, ln_params, S, N):
@@ -71,9 +72,3 @@ def residual_vector(ln_params, L_totals_M, P_tot_M, F_exps, S, N, ssr_history):
     vec = np.concatenate(res_list)
     ssr_history.append(float(np.dot(vec, vec)))
     return vec
-
-
-# Backward-compat aliases
-calculate_fractions_model = mole_fractions
-solve_L_free = free_ligand
-residuals = residual_vector

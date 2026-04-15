@@ -1,7 +1,7 @@
 """Binding models for native MS titration analysis.
 
-All model modules expose the same minimal interface so the same fitting
-driver can call any of them:
+All model modules expose the same interface so the same fitting driver
+can call any of them:
 
     MODEL_NAME : str
     mole_fractions(L_free_M, ln_params, S, N) -> ndarray
@@ -11,23 +11,23 @@ driver can call any of them:
     initial_lnK(S, ...) -> ndarray
     param_labels(S) -> list[str]
 
-Switch model in user code via the REGISTRY:
+Select a model via the REGISTRY:
 
     from scripts_binding.models import REGISTRY
-    model = REGISTRY['poisson_nsb']
+    model = REGISTRY["poisson_nonspecific"]
     lnK0 = model.initial_lnK(S=7)
     res = least_squares(model.residual_vector, lnK0, args=(...))
 """
-from . import specific
-from . import nonspecific
-from . import poisson_nsb
-from . import binomial_poisson
-from . import powerlaw_nsb
+from . import specific_binding
+from . import geometric_nonspecific
+from . import poisson_nonspecific
+from . import binomial_poisson_nonspecific
+from . import power_law_nonspecific
 
 REGISTRY = {
-    specific.MODEL_NAME: specific,                  # "specific"
-    nonspecific.MODEL_NAME: nonspecific,            # "geometric_nsb"
-    poisson_nsb.MODEL_NAME: poisson_nsb,            # "poisson_nsb"
-    binomial_poisson.MODEL_NAME: binomial_poisson,  # "binomial_poisson"
-    powerlaw_nsb.MODEL_NAME: powerlaw_nsb,          # "powerlaw_nsb"
+    specific_binding.MODEL_NAME: specific_binding,
+    geometric_nonspecific.MODEL_NAME: geometric_nonspecific,
+    poisson_nonspecific.MODEL_NAME: poisson_nonspecific,
+    binomial_poisson_nonspecific.MODEL_NAME: binomial_poisson_nonspecific,
+    power_law_nonspecific.MODEL_NAME: power_law_nonspecific,
 }
